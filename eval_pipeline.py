@@ -6,6 +6,7 @@ import pandas as pd
 from pathlib import Path
 import time
 import math
+import random
 
 # --- Настройки путей ---
 BIN_PATH = Path("./bin/chat")
@@ -123,5 +124,95 @@ def run_wikitext_eval():
     else:
         print("\n[!] Не удалось получить Perplexity ни для одного файла. Проверьте C-движок.")
 
+SAFE_WORDS = [
+    " apple", " house", " water", " light", " stone", " music",
+    " river", " glass", " paper", " plant", " cloud", " money",
+    " space", " magic", " robot", " dream", " color", " human",
+    " forest", " metal", " system", " nature", " animal", " ocean"
+]
+
+def run_induction_eval(num_samples=20, seq_len=15):
+    if not BIN_PATH.exists():
+        raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
+
+    results = []
+    print(f"\n[*] Запуск оценки Induction Heads ({num_samples} прогонов)...")
+
+    for i in range(num_samples):
+        seq = random.choices(SAFE_WORDS, k=seq_len)
+        text = "".join(seq) + "".join(seq)
+
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, encoding='utf-8') as temp_prompt, \
+                tempfile.NamedTemporaryFile(mode='r', delete=False, encoding='utf-8') as temp_output:
+
+            temp_prompt.write(text)
+            temp_prompt.flush()
+            prompt_file = temp_prompt.name
+            output_json_file = temp_output.name
+
+        # === ИНИЦИАЛИЗАЦИЯ ПЕРЕМЕННЫХ ДО TRY ===
+        prob_first = 0.0
+        prob_second = 0.0
+        induction_score = 0.0
+        status = "unknown"
+
+        cmd_ppl = [
+            str(BIN_PATH), str(MODEL_PATH),
+            "--batch-mode",
+            "--eval-ppl",
+            "--prompt-file", prompt_file,
+            "--output-json", output_json_file
+        ]
+
+        try:
+            process = subprocess.run(cmd_ppl, capture_output=True, text=True, check=False)
+
+            if process.returncode == 0:
+                with open(output_json_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    probs = data.get("target_probs", [])
+
+                    if len(probs) > 10:
+                        mid = len(probs) // 2
+                        first_half = probs[:mid]
+                        second_half = probs[mid:]
+
+                        prob_first = sum(first_half) / len(first_half)
+                        prob_second = sum(second_half) / len(second_half)
+                        induction_score = prob_second - prob_first
+                        status = "success"
+                    else:
+                        status = "too_few_tokens"
+            else:
+                status = f"error: {process.stderr.strip()[:50]}"
+
+        except Exception as e:
+            status = f"crash: {str(e)}"
+
+        finally:
+            Path(prompt_file).unlink(missing_ok=True)
+            Path(output_json_file).unlink(missing_ok=True)
+
+        print(f"  -> Прогон {i+1:02d} | Вероятность 1-й части: {prob_first*100:05.2f}% | 2-й части: {prob_second*100:05.2f}% | Score: {induction_score:+.4f}")
+
+        results.append({
+            "task_id": i,
+            "task_type": "induction_heads",
+            "prob_first_half": prob_first,
+            "prob_second_half": prob_second,
+            "induction_score": induction_score,
+            "status": status
+        })
+
+    df = pd.DataFrame(results)
+    conn = sqlite3.connect(DB_PATH)
+    df.to_sql("baseline_induction", conn, if_exists="replace", index=False)
+    conn.close()
+
+    valid_scores = df[df['status'] == 'success']['induction_score']
+    if not valid_scores.empty:
+        print(f"\n[!] Итоговый средний Induction Score: {valid_scores.mean():.4f}")
+
 if __name__ == "__main__":
-    run_wikitext_eval()
+    # run_wikitext_eval()
+    run_induction_eval()
