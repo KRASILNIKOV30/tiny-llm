@@ -36,3 +36,8 @@ typedef struct {
 void engine_get_stats(const Engine *e, EngineStats *out);
 
 void engine_free(Engine *e);
+
+// Оценивает последовательность текста и возвращает массив вероятностей (после softmax)
+// для каждого правильного следующего токена.
+// Массив нужно освободить через free(). Количество элементов запишется в *out_len.
+float *engine_eval_sequence(Engine *e, const char *text, int *out_len);

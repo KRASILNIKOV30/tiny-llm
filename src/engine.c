@@ -376,3 +376,36 @@ void engine_free(Engine *e) {
     tok_free(&e->tok);
     free(e);
 }
+
+float *engine_eval_sequence(Engine *e, const char *text, int *out_len) {
+    // Выделяем память с запасом под максимальный контекст
+    int *tokens = malloc(e->cfg.max_seq_len * sizeof(int));
+    if (!tokens) return NULL;
+
+    int n = tok_encode(&e->tok, text, tokens);
+
+    // Если токенов меньше 2, мы не можем предсказывать "следующий" токен
+    if (n < 2) {
+        free(tokens);
+        *out_len = 0;
+        return NULL;
+    }
+
+    // Буфер для сохранения вероятностей p(x_{t+1} | x_1...x_t)
+    float *probs = malloc((n - 1) * sizeof(float));
+    e->pos = 0; // Сбрасываем позицию KV-кэша
+
+    double t0 = now_ms();
+    for (int i = 0; i < n - 1; i++) {
+        float *logits = forward(e, tokens[i], e->pos++);
+        softmax(logits, e->cfg.vocab_size);
+        probs[i] = logits[tokens[i + 1]];
+    }
+
+    e->prefill_ms += now_ms() - t0;
+    e->prefill_tokens += (n - 1);
+
+    free(tokens);
+    *out_len = n - 1;
+    return probs;
+}

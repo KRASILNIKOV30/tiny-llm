@@ -18,15 +18,6 @@
 
 static struct termios saved_termios;
 
-static void term_raw(void) {
-    tcgetattr(STDIN_FILENO, &saved_termios);
-    struct termios raw = saved_termios;
-    raw.c_lflag &= ~(ECHO | ICANON);
-    raw.c_cc[VMIN]  = 1;
-    raw.c_cc[VTIME] = 0;
-    tcsetattr(STDIN_FILENO, TCSANOW, &raw);
-}
-
 static void term_restore(void) {
     tcsetattr(STDIN_FILENO, TCSANOW, &saved_termios);
 }
@@ -159,40 +150,6 @@ static void run_job(GenArgs *a) {
     pthread_mutex_unlock(&s_job_mutex);
 }
 
-// Прочитать строку из stdin.
-// Возвращает 1, если нажат Escape.
-static int read_user_input(char *buf, int maxlen) {
-    term_restore();
-
-    fputs(">> ", stdout);
-    fflush(stdout);
-
-    int n = 0;
-    int c;
-
-    c = fgetc(stdin);
-    if (c == 27) {          /* Escape */
-        term_raw();
-        return 1;
-    }
-    if (c == EOF || c == '\n') {
-        buf[0] = '\0';
-        term_raw();
-        return 0;
-    }
-    buf[n++] = (char)c;
-
-    if (fgets(buf + n, maxlen - n, stdin) == NULL) {
-        buf[n] = '\0';
-    } else {
-        int len = (int)strlen(buf);
-        if (len > 0 && buf[len-1] == '\n') buf[len-1] = '\0';
-    }
-
-    term_raw();
-    return 0;
-}
-
 // Чтение содержимого файла целиком
 static char* read_file_content(const char* path) {
     FILE *f = fopen(path, "rb");
@@ -242,15 +199,33 @@ static void write_json(const char *path, const char *prompt, const char *respons
     fclose(f);
 }
 
+static void write_json_ppl(const char *path, float *probs, int probs_len) {
+    FILE *f = fopen(path, "w");
+    if (!f) {
+        fprintf(stderr, "ошибка: не удалось открыть файл для записи JSON\n");
+        return;
+    }
+
+    fprintf(f, "{\n  \"target_probs\": [");
+    for (int i = 0; i < probs_len; i++) {
+        fprintf(f, "%.6f%s", probs[i], (i == probs_len - 1) ? "" : ", ");
+    }
+    fprintf(f, "]\n}\n");
+    fclose(f);
+}
+
 int main(int argc, char **argv) {
     const char *model_path  = NULL;
     const char *prompt_file = NULL;
     const char *output_json = NULL;
+    int s_eval_ppl = 0;
 
     // Парсинг аргументов
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--batch-mode") == 0) {
             s_batch_mode = 1;
+        } else if (strcmp(argv[i], "--eval-ppl") == 0) {
+            s_eval_ppl = 1;
         } else if (strcmp(argv[i], "--prompt-file") == 0 && i + 1 < argc) {
             prompt_file = argv[++i];
         } else if (strcmp(argv[i], "--output-json") == 0 && i + 1 < argc) {
@@ -281,100 +256,47 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Запуск инференс-потока (общий для обоих режимов)
     pthread_create(&s_inf_thread, NULL, inf_thread, NULL);
 
-    // ==========================================
-    // ПАКЕТНЫЙ РЕЖИМ (HEADLESS)
-    // ==========================================
     if (s_batch_mode) {
         char *user_msg = read_file_content(prompt_file);
-        if (!user_msg) {
-            fprintf(stderr, "ошибка: не удалось прочитать %s\n", prompt_file);
-            exit(1);
-        }
+        if (!user_msg) exit(1);
 
-        ChatHistory history;
-        chat_init(&history, NULL);
-        chat_append(&history, ROLE_USER, user_msg);
+        if (s_eval_ppl) {
+            // Режим оценки (Perplexity)
+            int probs_len = 0;
+            float *probs = engine_eval_sequence(e, user_msg, &probs_len);
 
-        // Форматируем в ChatML для Qwen
-        char *prompt = chat_format_delta(&history, 0, 0, 1);
-
-        ReplyBuf reply = { NULL, 0, 0 };
-        GenArgs args = { e, prompt, &reply };
-
-        atomic_store(&stop_requested, 0);
-        run_job(&args); // Блокирующий вызов, ждем генерацию всего ответа
-
-        if (output_json) {
-            write_json(output_json, user_msg, reply.buf ? reply.buf : "");
+            if (output_json && probs) {
+                write_json_ppl(output_json, probs, probs_len);
+            } else if (probs) {
+                printf("Собрано %d вероятностей.\n", probs_len);
+            }
+            free(probs);
         } else {
-            // Если output_json не указан, просто выводим результат в stdout
-            printf("%s\n", reply.buf ? reply.buf : "");
-        }
-
-        free(user_msg);
-        free(prompt);
-        free(reply.buf);
-        chat_free(&history);
-
-    }
-        // ==========================================
-        // ИНТЕРАКТИВНЫЙ РЕЖИМ
-        // ==========================================
-    else {
-        fprintf(stderr, "Чат с Qwen2.5-0.5B-Instruct (нажмите Esc или Ctrl-C для выхода)\n\n");
-
-        term_raw(); // Включаем сырой режим терминала только для чата
-
-        ChatHistory history;
-        chat_init(&history, NULL);
-        char user_msg[4096];
-        ReplyBuf reply = { NULL, 0, 0 };
-        int sent_msgs = 0;
-
-        for (;;) {
-            int esc = read_user_input(user_msg, sizeof(user_msg));
-            if (esc || user_msg[0] == '\0') break;
-
-            printf("\n");
-            fflush(stdout);
-
+            // Режим генерации (Zero-shot, ChatML)
+            ChatHistory history;
+            chat_init(&history, NULL);
             chat_append(&history, ROLE_USER, user_msg);
-            int close_prev = (sent_msgs > 0);
-            char *prompt = chat_format_delta(&history, sent_msgs, close_prev, 1);
+            char *prompt = chat_format_delta(&history, 0, 0, 1);
 
-            reply.len = 0;
-            if (reply.buf) reply.buf[0] = '\0';
+            ReplyBuf reply = { NULL, 0, 0 };
+            GenArgs args = { e, prompt, &reply };
 
             atomic_store(&stop_requested, 0);
-            GenArgs args = { e, prompt, &reply };
             run_job(&args);
-            free(prompt);
 
-            if (atomic_load(&stop_requested)) break;
-
-            if (reply.buf && reply.len > 0) {
-                chat_append(&history, ROLE_ASSISTANT, reply.buf);
-                sent_msgs = history.len;
-            } else {
-                sent_msgs = history.len;
+            if (output_json) {
+                write_json(output_json, user_msg, reply.buf ? reply.buf : "");
             }
 
-            printf("\n\n");
-            fflush(stdout);
+            free(prompt);
+            free(reply.buf);
+            chat_free(&history);
         }
-
-        term_restore();
-        printf("\nПока.\n");
-        free(reply.buf);
-        chat_free(&history);
+        free(user_msg);
     }
 
-    // ==========================================
-    // ОСТАНОВКА И СТАТИСТИКА
-    // ==========================================
     pthread_mutex_lock(&s_job_mutex);
     s_inf_exit = 1;
     pthread_cond_signal(&s_job_ready);
