@@ -20,7 +20,7 @@ def load_mcqa_data():
                 data.append(json.loads(line))
     return data
 
-def run_mcqa_eval(skip_layers=None, head_mask=None):
+def run_mcqa_eval(skip_layers=None, head_mask=None, mlp_mask=None, rope_mask=None):
     if not BIN_PATH.exists():
         raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
 
@@ -69,11 +69,10 @@ def run_mcqa_eval(skip_layers=None, head_mask=None):
             "--output-json", output_json_file
         ]
 
-        if skip_layers:
-            cmd.extend(["--skip-layers", skip_layers])
-
-        if head_mask:
-            cmd.extend(["--mask-head", head_mask])
+        if skip_layers: cmd.extend(["--skip-layers", skip_layers])
+        if head_mask: cmd.extend(["--mask-head", head_mask])
+        if mlp_mask: cmd.extend(["--mask-mlp", mlp_mask])
+        if rope_mask: cmd.extend(["--mask-rope", rope_mask])
 
         try:
             process = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -115,6 +114,8 @@ def run_mcqa_eval(skip_layers=None, head_mask=None):
             "status": status,
             "layer_mask": skip_layers if skip_layers else "None",
             "head_mask": head_mask if head_mask else "None",
+            "mlp_mask": mlp_mask if mlp_mask else "None",
+            "rope_mask": rope_mask if rope_mask else "None",
         })
 
     # Сохранение результатов в БД

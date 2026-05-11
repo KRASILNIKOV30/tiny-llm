@@ -34,6 +34,8 @@ int main(int argc, char **argv) {
     const char *output_json = NULL;
     const char *skip_layers_arg = NULL;
     const char *head_mask_arg = NULL;
+    const char *mlp_mask_arg = NULL;
+    const char *rope_mask_arg = NULL;
     int s_eval_ppl = 0;
     int s_eval_mcqa = 0;
     int s_eval_lama = 0;
@@ -61,6 +63,10 @@ int main(int argc, char **argv) {
             max_tokens = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--mask-head") == 0 && i + 1 < argc) {
             head_mask_arg = argv[++i];
+        } else if (strcmp(argv[i], "--mask-mlp") == 0 && i + 1 < argc) {
+            mlp_mask_arg = argv[++i];
+        } else if (strcmp(argv[i], "--mask-rope") == 0 && i + 1 < argc) {
+            rope_mask_arg = argv[++i];
         }
         else {
             fprintf(stderr, "ошибка: неизвестный аргумент '%s'\n", argv[i]);
@@ -90,6 +96,8 @@ int main(int argc, char **argv) {
 
     engine_set_layer_mask(e, skip_layers_arg);
     engine_set_head_mask(e, head_mask_arg);
+    engine_set_mlp_mask(e, mlp_mask_arg);
+    engine_set_rope_mask(e, rope_mask_arg);
 
     pthread_t inf_thread_id;
     inference_start_thread(&inf_thread_id);

@@ -8,7 +8,7 @@ import random
 
 from config import BIN_PATH, MODEL_PATH, DB_PATH, SAFE_WORDS
 
-def run_induction_eval(skip_layers=None, head_mask=None, num_samples=10, seq_len=15):
+def run_induction_eval(skip_layers=None, head_mask=None, mlp_mask=None, rope_mask=None, num_samples=10, seq_len=15):
     if not BIN_PATH.exists():
         raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
 
@@ -41,14 +41,16 @@ def run_induction_eval(skip_layers=None, head_mask=None, num_samples=10, seq_len
             "--output-json", output_json_file
         ]
 
-        if skip_layers:
-            cmd_ppl.extend(["--skip-layers", skip_layers])
-
-        if head_mask:
-            cmd_ppl.extend(["--mask-head", head_mask])
+        if skip_layers: cmd_ppl.extend(["--skip-layers", skip_layers])
+        if head_mask: cmd_ppl.extend(["--mask-head", head_mask])
+        if mlp_mask: cmd_ppl.extend(["--mask-mlp", mlp_mask])
+        if rope_mask: cmd_ppl.extend(["--mask-rope", rope_mask])
 
         try:
-            process = subprocess.run(cmd_ppl, capture_output=False, text=True, check=False)
+            process = subprocess.run(cmd_ppl, capture_output=True, text=True, check=False)
+
+            if process.stderr and "[Ablation]" in process.stderr:
+                print(f" {process.stderr.strip()}", end="")
 
             if process.returncode == 0:
                 with open(output_json_file, 'r', encoding='utf-8') as f:
@@ -87,6 +89,8 @@ def run_induction_eval(skip_layers=None, head_mask=None, num_samples=10, seq_len
             "status": status,
             "layer_mask": skip_layers if skip_layers else "None",
             "head_mask": head_mask if head_mask else "None",
+            "mlp_mask": mlp_mask if mlp_mask else "None",
+            "rope_mask": rope_mask if rope_mask else "None",
         })
 
     df = pd.DataFrame(results)

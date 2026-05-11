@@ -55,3 +55,6 @@ int engine_get_vocab_size(Engine *e);
 void engine_set_layer_mask(Engine *e, const char *mask_str);
 
 void engine_set_head_mask(Engine *e, const char *mask_str);
+
+void engine_set_mlp_mask(Engine *e, const char *mask_str);
+void engine_set_rope_mask(Engine *e, const char *mask_str);

@@ -72,6 +72,8 @@ struct Engine {
     int8_t *active_layers;
     int8_t *q_head_mask;
     int8_t *kv_head_mask;
+    int8_t *mlp_mask;
+    int8_t *rope_mask;
 };
 
 void engine_set_layer_mask(Engine *e, const char *mask_str) {
@@ -124,6 +126,36 @@ void engine_set_head_mask(Engine *e, const char *mask_str) {
     }
 }
 
+void engine_set_mlp_mask(Engine *e, const char *mask_str) {
+    if (!e->mlp_mask) {
+        e->mlp_mask = malloc(e->cfg.n_layers);
+        memset(e->mlp_mask, 1, e->cfg.n_layers);
+    }
+    if (!mask_str) return;
+    int start, end;
+    if (sscanf(mask_str, "%d-%d", &start, &end) == 2) {
+        for (int i = start; i < end && i < e->cfg.n_layers; i++) {
+            e->mlp_mask[i] = 0;
+        }
+        fprintf(stderr, "[Ablation] MLP (Feed-Forward) на слоях %d-%d отключен.\n", start, end-1);
+    }
+}
+
+void engine_set_rope_mask(Engine *e, const char *mask_str) {
+    if (!e->rope_mask) {
+        e->rope_mask = malloc(e->cfg.n_layers);
+        memset(e->rope_mask, 1, e->cfg.n_layers);
+    }
+    if (!mask_str) return;
+    int start, end;
+    if (sscanf(mask_str, "%d-%d", &start, &end) == 2) {
+        for (int i = start; i < end && i < e->cfg.n_layers; i++) {
+            e->rope_mask[i] = 0;
+        }
+        fprintf(stderr, "[Ablation] RoPE (позиционное кодирование) на слоях %d-%d отключено.\n", start, end-1);
+    }
+}
+
 // Выполняет forward pass для одного токена в позиции pos
 // и возвращает указатель на логиты по всему словарю.
 static float *forward(Engine *e, int token, int pos) {
@@ -159,8 +191,10 @@ static float *forward(Engine *e, int token, int pos) {
 
         // Применяем rotary positional embedding к Q и K
         // для учета позиции токена в последовательности.
-        rope(s->q,     pos, nq,  hd, cfg->rope_freq_base);
-        rope(s->k_cur, pos, nkv, hd, cfg->rope_freq_base);
+        if (!e->rope_mask || e->rope_mask[l] != 0) {
+            rope(s->q,     pos, nq,  hd, cfg->rope_freq_base);
+            rope(s->k_cur, pos, nkv, hd, cfg->rope_freq_base);
+        }
 
         // Сохраняем K и V текущего токена в KV-кэш слоя,
         // чтобы использовать их на следующих шагах декодирования.
@@ -214,6 +248,12 @@ static float *forward(Engine *e, int token, int pos) {
         // и добавляем residual connection.
         linear_layer(s->tmp, w->layer[l].attn_out_w, s->attn_out, NULL, dm, dm);
         for (int i = 0; i < dm; i++) s->x[i] += s->tmp[i];
+
+        if (e->mlp_mask && e->mlp_mask[l] == 0) {
+            // Пропускаем FFN. Это идентично s->ffn_out = 0,
+            // так как в residual connection s->x останется без изменений.
+            continue;
+        }
 
         // Feed-Forward block
         // Нормализуем состояние перед FFN.
