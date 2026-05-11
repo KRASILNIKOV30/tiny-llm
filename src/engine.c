@@ -70,6 +70,8 @@ struct Engine {
     long   gen_tokens;
     double gen_ms;
     int8_t *active_layers;
+    int8_t *q_head_mask;
+    int8_t *kv_head_mask;
 };
 
 void engine_set_layer_mask(Engine *e, const char *mask_str) {
@@ -88,6 +90,37 @@ void engine_set_layer_mask(Engine *e, const char *mask_str) {
             e->active_layers[i] = 0;
         }
         fprintf(stderr, "[Ablation] Слои с %d по %d отключены.\n", start, end-1);
+    }
+}
+
+void engine_set_head_mask(Engine *e, const char *mask_str) {
+    int nl = e->cfg.n_layers;
+    int nq = e->cfg.n_heads_q;
+    int nkv = e->cfg.n_heads_kv;
+
+    if (!e->q_head_mask) {
+        e->q_head_mask = malloc(nl * nq);
+        memset(e->q_head_mask, 1, nl * nq);
+    }
+    if (!e->kv_head_mask) {
+        e->kv_head_mask = malloc(nl * nkv);
+        memset(e->kv_head_mask, 1, nl * nkv);
+    }
+
+    if (!mask_str) return;
+
+    int l, idx;
+    char type[4];
+    // Парсим формат "L:type:ID", например "15:q:2"
+    if (sscanf(mask_str, "%d:%2[^:]:%d", &l, type, &idx) == 3) {
+        if (l < 0 || l >= nl) return;
+        if (strcmp(type, "q") == 0 && idx < nq) {
+            e->q_head_mask[l * nq + idx] = 0;
+            fprintf(stderr, "[Ablation] Q-head %d в слое %d отключена.\n", idx, l);
+        } else if (strcmp(type, "kv") == 0 && idx < nkv) {
+            e->kv_head_mask[l * nkv + idx] = 0;
+            fprintf(stderr, "[Ablation] KV-head %d в слое %d отключена (влияет на 7 Q-голов).\n", idx, l);
+        }
     }
 }
 
@@ -146,6 +179,13 @@ static float *forward(Engine *e, int token, int pos) {
         // Обрабатываем каждую query-head отдельно.
         for (int h = 0; h < nq; h++) {
             int    kv_h   = h / group;                      // какая K/V-голова соответствует этой Q-голове
+
+            // Если отключена конкретная Q-голова ИЛИ вся KV-группа, пропускаем вычисления
+            if ((e->q_head_mask && e->q_head_mask[l * nq + h] == 0) ||
+                (e->kv_head_mask && e->kv_head_mask[l * nkv + kv_h] == 0)) {
+                continue;
+            }
+
             float *qh     = s->q + h * hd;                  // вектор query для головы h
             float *scores = s->attn + h * cfg->max_seq_len; // attention-логиты для головы h
             float  scale  = 1.f / sqrtf((float)hd);         // стандартное масштабирование dot-product attention

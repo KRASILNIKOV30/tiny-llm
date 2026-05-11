@@ -8,7 +8,7 @@ import time
 
 from config import BIN_PATH, MODEL_PATH, DB_PATH
 
-def run_chatml_retention_eval(skip_layers=None, num_tests=10):
+def run_chatml_retention_eval(skip_layers=None, head_mask=None, num_tests=10):
     if not BIN_PATH.exists():
         raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
 
@@ -54,6 +54,9 @@ def run_chatml_retention_eval(skip_layers=None, num_tests=10):
 
         if skip_layers:
             cmd.extend(["--skip-layers", skip_layers])
+
+        if head_mask:
+            cmd.extend(["--mask-head", head_mask])
 
         try:
             # Нам нужно поймать именно то, что модель выдала в ответ
@@ -110,7 +113,9 @@ def run_chatml_retention_eval(skip_layers=None, num_tests=10):
             "prompt": user_query[:30],
             "retention_score": score,
             "fail_reason": fail_reason,
-            "status": status
+            "status": status,
+            "layer_mask": skip_layers if skip_layers else "None",
+            "head_mask": head_mask if head_mask else "None",
         })
 
     # Сохранение в БД

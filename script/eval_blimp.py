@@ -9,7 +9,7 @@ import math
 
 from config import BIN_PATH, MODEL_PATH, DB_PATH, BLIMP_DATA_PATH
 
-def get_perplexity(text, skip_layers=None):
+def get_perplexity(text, skip_layers=None, head_mask=None):
     """Прогоняет текст через C-движок и возвращает Perplexity."""
     with tempfile.NamedTemporaryFile(mode='w', delete=False, encoding='utf-8') as temp_prompt, \
             tempfile.NamedTemporaryFile(mode='r', delete=False, encoding='utf-8') as temp_output:
@@ -30,6 +30,9 @@ def get_perplexity(text, skip_layers=None):
     if skip_layers:
         cmd.extend(["--skip-layers", skip_layers])
 
+    if head_mask:
+        cmd.extend(["--mask-head", head_mask])
+
     ppl = None
     try:
         process = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -46,7 +49,7 @@ def get_perplexity(text, skip_layers=None):
 
     return ppl
 
-def run_blimp_eval(skip_layers=None):
+def run_blimp_eval(skip_layers=None, head_mask=None):
     if not BIN_PATH.exists():
         raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
 
@@ -70,8 +73,8 @@ def run_blimp_eval(skip_layers=None):
     for idx, item in enumerate(data):
         start_time = time.time()
 
-        ppl_good = get_perplexity(item["sentence_good"], skip_layers)
-        ppl_bad = get_perplexity(item["sentence_bad"], skip_layers)
+        ppl_good = get_perplexity(item["sentence_good"], skip_layers, head_mask)
+        ppl_bad = get_perplexity(item["sentence_bad"], skip_layers, head_mask)
 
         status = "success"
         is_correct = False
@@ -97,7 +100,9 @@ def run_blimp_eval(skip_layers=None):
             "ppl_bad": ppl_bad,
             "is_correct": int(is_correct),
             "run_time_sec": run_time,
-            "status": status
+            "status": status,
+            "layer_mask": skip_layers if skip_layers else "None",
+            "head_mask": head_mask if head_mask else "None",
         })
 
     # Сохраняем в БД

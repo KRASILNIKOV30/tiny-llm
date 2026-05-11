@@ -8,7 +8,7 @@ import random
 
 from config import BIN_PATH, MODEL_PATH, DB_PATH, SAFE_WORDS
 
-def run_induction_eval(skip_layers=None, num_samples=20, seq_len=15):
+def run_induction_eval(skip_layers=None, head_mask=None, num_samples=10, seq_len=15):
     if not BIN_PATH.exists():
         raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
 
@@ -44,8 +44,11 @@ def run_induction_eval(skip_layers=None, num_samples=20, seq_len=15):
         if skip_layers:
             cmd_ppl.extend(["--skip-layers", skip_layers])
 
+        if head_mask:
+            cmd_ppl.extend(["--mask-head", head_mask])
+
         try:
-            process = subprocess.run(cmd_ppl, capture_output=True, text=True, check=False)
+            process = subprocess.run(cmd_ppl, capture_output=False, text=True, check=False)
 
             if process.returncode == 0:
                 with open(output_json_file, 'r', encoding='utf-8') as f:
@@ -81,7 +84,9 @@ def run_induction_eval(skip_layers=None, num_samples=20, seq_len=15):
             "prob_first_half": prob_first,
             "prob_second_half": prob_second,
             "induction_score": induction_score,
-            "status": status
+            "status": status,
+            "layer_mask": skip_layers if skip_layers else "None",
+            "head_mask": head_mask if head_mask else "None",
         })
 
     df = pd.DataFrame(results)

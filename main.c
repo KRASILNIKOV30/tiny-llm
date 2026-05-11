@@ -33,6 +33,7 @@ int main(int argc, char **argv) {
     const char *prompt_file = NULL;
     const char *output_json = NULL;
     const char *skip_layers_arg = NULL;
+    const char *head_mask_arg = NULL;
     int s_eval_ppl = 0;
     int s_eval_mcqa = 0;
     int s_eval_lama = 0;
@@ -58,6 +59,8 @@ int main(int argc, char **argv) {
             skip_layers_arg = argv[++i];
         } else if (strcmp(argv[i], "--max-tokens") == 0 && i + 1 < argc) {
             max_tokens = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--mask-head") == 0 && i + 1 < argc) {
+            head_mask_arg = argv[++i];
         }
         else {
             fprintf(stderr, "ошибка: неизвестный аргумент '%s'\n", argv[i]);
@@ -86,6 +89,7 @@ int main(int argc, char **argv) {
     }
 
     engine_set_layer_mask(e, skip_layers_arg);
+    engine_set_head_mask(e, head_mask_arg);
 
     pthread_t inf_thread_id;
     inference_start_thread(&inf_thread_id);

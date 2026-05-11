@@ -10,7 +10,7 @@ import math
 from config import BIN_PATH, MODEL_PATH, DB_PATH
 from data_loader import load_local_dataset
 
-def run_wikitext_eval(skip_layers=None):
+def run_wikitext_eval(skip_layers=None, head_mask=None):
     """Прогон метрики Perplexity по локальным файлам"""
     if not BIN_PATH.exists():
         raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
@@ -50,6 +50,9 @@ def run_wikitext_eval(skip_layers=None):
             "--output-json", output_json_file
         ]
 
+        if head_mask:
+            cmd_ppl.extend(["--mask-head", head_mask])
+
         if skip_layers:
             cmd_ppl.extend(["--skip-layers", skip_layers])
 
@@ -88,7 +91,9 @@ def run_wikitext_eval(skip_layers=None):
             "task_type": "wikitext_ppl",
             "perplexity": perplexity,
             "run_time_sec": run_time,
-            "status": status
+            "status": status,
+            "layer_mask": skip_layers if skip_layers else "None",
+            "head_mask": head_mask if head_mask else "None",
         })
 
     df = pd.DataFrame(results)

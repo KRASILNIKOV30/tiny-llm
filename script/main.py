@@ -8,49 +8,41 @@ from eval_chatml import run_chatml_retention_eval
 from eval_passkey import run_passkey_eval
 from config import DB_PATH
 
-
 def clear_db():
-    """Очистка результатов перед новым глобальным тестом."""
     if DB_PATH.exists():
         DB_PATH.unlink()
 
-def run_full_suite(ablation_name, skip_layers_mask):
-    """Запуск всех доступных метрик для конкретной конфигурации."""
+def run_full_suite(ablation_name, skip_layers_mask=None, head_mask=None):
     print(f"\n" + "="*60)
-    print(f"ЗАПУСК АБЛЯЦИИ: {ablation_name} (Mask: {skip_layers_mask or 'None'})")
+    print(f"ЗАПУСК АБЛЯЦИИ: {ablation_name} | Layers: {skip_layers_mask or 'All'} | Heads: {head_mask or 'All'}")
     print("="*60)
 
-    #run_chatml_retention_eval(skip_layers=skip_layers_mask)
-    #run_wikitext_eval(skip_layers=skip_layers_mask)
-    #run_induction_eval(skip_layers=skip_layers_mask)
-    #run_mcqa_eval(skip_layers=skip_layers_mask)
-    #run_blimp_eval(skip_layers=skip_layers_mask)
-    #run_lama_eval(skip_layers=skip_layers_mask)
-    #run_passkey_eval(skip_layers=skip_layers_mask)
+    # Передаем head_mask во все функции (раскомментируй нужные)
+    run_induction_eval(skip_layers=skip_layers_mask, head_mask=head_mask)
+    #run_wikitext_eval(skip_layers=skip_layers_mask, head_mask=head_mask)
+    # run_chatml_retention_eval(skip_layers=skip_layers_mask, head_mask=head_mask)
+    # run_mcqa_eval(skip_layers=skip_layers_mask, head_mask=head_mask)
+    # run_blimp_eval(skip_layers=skip_layers_mask, head_mask=head_mask)
+    # run_lama_eval(skip_layers=skip_layers_mask, head_mask=head_mask)
+    # run_passkey_eval(skip_layers=skip_layers_mask, head_mask=head_mask)
 
-def get_summary_report():
-    """Собирает данные из SQLite и строит финальный отчет."""
-    conn = sqlite3.connect(DB_PATH)
-    # Пример сборки данных из разных таблиц
-    # В реальности нужно добавить колонку 'ablation_id' в каждый eval скрипт
-    print("\n" + "#"*60)
-    print("ФИНАЛЬНЫЙ ОТЧЕТ ПО АБЛЯЦИЯМ")
-    print("#"*60)
-    # Здесь можно выгрузить pandas-фреймворки и сравнить Accuracy/PPL
-    conn.close()
+# ... (get_summary_report остается без изменений) ...
 
 if __name__ == "__main__":
-    # Список экспериментов: (Имя, Маска)
     experiments = [
-        ("Baseline", None),                # Чистая модель
-        ("Skip Middle", "11-13"),          # Убираем 12-й слой (центр)
-        ("Skip Deep", "20-24"),            # Убираем последние 4 слоя
-        ("Skip Half", "12-24"),            # Убираем вторую половину
+        ("Baseline", None, None),
+        #("Skip Middle", "11-13"),
+        #("Skip Deep", "20-24"),
+        #("Skip Half", "12-24"),
+        ("Zero Q-Head L12:Q:0", None, "12:q:0"),
+        #("Zero Q-Head L12:Q:5", None, "12:q:5"),
+        ("Zero KV-Head L12:KV:0", None, "12:kv:0"),
+        #("Zero KV-Head L12:KV:1", None, "12:kv:1"),
     ]
 
     clear_db()
 
-    for name, mask in experiments:
-        run_full_suite(name, mask)
+    for name, l_mask, h_mask in experiments:
+        run_full_suite(name, l_mask, h_mask)
 
     print("\n[!] Пайплайн завершен. Все данные сохранены в", DB_PATH)
