@@ -47,3 +47,6 @@ float *engine_get_logits(Engine *e, const char *text);
 
 // Обертка для токенизации строки без доступа к внутренностям Engine
 int engine_encode(Engine *e, const char *text, int *out);
+
+// Возвращает размер словаря модели
+int engine_get_vocab_size(Engine *e);

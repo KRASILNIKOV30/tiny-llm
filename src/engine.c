@@ -439,3 +439,7 @@ float *engine_eval_sequence(Engine *e, const char *text, int *out_len) {
 int engine_encode(Engine *e, const char *text, int *out) {
     return tok_encode(&e->tok, text, out);
 }
+
+int engine_get_vocab_size(Engine *e) {
+    return e->cfg.vocab_size;
+}

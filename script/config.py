@@ -6,6 +6,7 @@ DATASETS_DIR = Path("./datasets/wikitext")
 DB_PATH = Path("./script/eval_results.db")
 MCQA_DATA_PATH = Path("./datasets/mcqa.jsonl")
 BLIMP_DATA_PATH = Path("./datasets/blimp.jsonl")
+LAMA_DATA_PATH = Path("./datasets/lama.jsonl")
 
 SAFE_WORDS = [
     " apple", " house", " water", " light", " stone", " music",
