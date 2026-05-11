@@ -1,0 +1,20 @@
+{"category": "logic_basic", "question": "All dogs are animals. A poodle is a dog. Is a poodle an animal?", "A": "Yes", "B": "No", "C": "Maybe", "D": "I don't know", "answer": "A"}
+{"category": "logic_basic", "question": "The light is turned on. Therefore, the light is NOT:", "A": "Bright", "B": "Shining", "C": "Off", "D": "Working", "answer": "C"}
+{"category": "logic_basic", "question": "An elephant is bigger than a mouse. This means a mouse is:", "A": "Bigger than an elephant", "B": "Smaller than an elephant", "C": "The same size", "D": "Heavier", "answer": "B"}
+{"category": "logic_basic", "question": "The ball is inside the box. The box is inside the house. Where is the ball?", "A": "Outside the house", "B": "Inside the house", "C": "On the roof", "D": "Under the box", "answer": "B"}
+{"category": "logic_basic", "question": "You must choose exactly one path: Left or Right. You do not go Left. Where do you go?", "A": "Up", "B": "Down", "C": "Left", "D": "Right", "answer": "D"}
+{"category": "logic_basic", "question": "If a car is completely black, it cannot be:", "A": "Fast", "B": "Slow", "C": "White", "D": "Heavy", "answer": "C"}
+{"category": "logic_basic", "question": "Item A is exactly the same as Item B. Item B is exactly the same as Item C. Is Item A the same as Item C?", "A": "Yes", "B": "No", "C": "Maybe", "D": "Only sometimes", "answer": "A"}
+{"category": "logic_basic", "question": "Event X happened before Event Y. Did Event Y happen after Event X?", "A": "Yes", "B": "No", "C": "They happened at the same time", "D": "Impossible to know", "answer": "A"}
+{"category": "logic_basic", "question": "All apples in the basket are red. I take an apple from this basket. What color is it?", "A": "Green", "B": "Yellow", "C": "Blue", "D": "Red", "answer": "D"}
+{"category": "logic_basic", "question": "The glass is completely empty. Is there any water in the glass?", "A": "Yes, a little", "B": "Yes, it is full", "C": "No, it is empty", "D": "Maybe", "answer": "C"}
+{"category": "logic_basic", "question": "John is in Paris. Paris is inside France. Where is John?", "A": "In Germany", "B": "In France", "C": "In Spain", "D": "In Italy", "answer": "B"}
+{"category": "logic_basic", "question": "A train is faster than a bicycle. This means a bicycle is:", "A": "Slower than a train", "B": "Faster than a train", "C": "The same speed", "D": "Flying", "answer": "A"}
+{"category": "logic_basic", "question": "To enter the club, you need a ticket AND an ID. You have a ticket, but NO ID. Can you enter?", "A": "Yes", "B": "No", "C": "Maybe", "D": "Always", "answer": "B"}
+{"category": "logic_basic", "question": "Mary is older than Peter. This means Peter is:", "A": "Older than Mary", "B": "Younger than Mary", "C": "The same age", "D": "Taller", "answer": "B"}
+{"category": "logic_basic", "question": "None of the cats are sleeping. Fluffy is a cat. Is Fluffy sleeping?", "A": "Yes", "B": "No", "C": "Sometimes", "D": "Always", "answer": "B"}
+{"category": "logic_basic", "question": "The door is wide open. Is the door closed?", "A": "Yes", "B": "No", "C": "Almost", "D": "Halfway", "answer": "B"}
+{"category": "logic_basic", "question": "The tree is taller than the bush. Is the bush shorter than the tree?", "A": "Yes", "B": "No", "C": "They are equal", "D": "Cannot be determined", "answer": "A"}
+{"category": "logic_basic", "question": "You need a key OR a code to open the safe. You have a key. Can you open the safe?", "A": "Yes", "B": "No", "C": "Only with a code", "D": "Never", "answer": "A"}
+{"category": "logic_basic", "question": "If today is raining, the ground is wet. Today is raining. Is the ground wet?", "A": "Yes", "B": "No", "C": "It is dry", "D": "It is snowing", "answer": "A"}
+{"category": "logic_basic", "question": "A triangle has exactly three sides. A square has exactly four sides. Are a triangle and a square the same shape?", "A": "Yes", "B": "No", "C": "Always", "D": "Maybe", "answer": "B"}

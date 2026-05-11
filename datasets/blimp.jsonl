@@ -1,0 +1,10 @@
+{"category": "syntax", "sentence_good": "The dogs are barking loudly.", "sentence_bad": "The dogs is barking loudly."}
+{"category": "syntax", "sentence_good": "The boy who likes red cars walks to school.", "sentence_bad": "The boy who likes red cars walk to school."}
+{"category": "syntax", "sentence_good": "I have read this book.", "sentence_bad": "I have read these book."}
+{"category": "syntax", "sentence_good": "Those apples look delicious.", "sentence_bad": "That apples look delicious."}
+{"category": "syntax", "sentence_good": "She caught the ball.", "sentence_bad": "She catched the ball."}
+{"category": "syntax", "sentence_good": "They drove to the city.", "sentence_bad": "They drived to the city."}
+{"category": "syntax", "sentence_good": "The actress taught herself to play the piano.", "sentence_bad": "The actress taught himself to play the piano."}
+{"category": "syntax", "sentence_good": "The king saw himself in the mirror.", "sentence_bad": "The king saw themselves in the mirror."}
+{"category": "syntax", "sentence_good": "No student has ever failed this exam.", "sentence_bad": "Some student has ever failed this exam."}
+{"category": "syntax", "sentence_good": "I don't have any money left.", "sentence_bad": "I have any money left."}
