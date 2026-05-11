@@ -9,7 +9,7 @@ import math
 
 from config import BIN_PATH, MODEL_PATH, DB_PATH, BLIMP_DATA_PATH
 
-def get_perplexity(text):
+def get_perplexity(text, skip_layers=None):
     """Прогоняет текст через C-движок и возвращает Perplexity."""
     with tempfile.NamedTemporaryFile(mode='w', delete=False, encoding='utf-8') as temp_prompt, \
             tempfile.NamedTemporaryFile(mode='r', delete=False, encoding='utf-8') as temp_output:
@@ -27,6 +27,9 @@ def get_perplexity(text):
         "--output-json", output_json_file
     ]
 
+    if skip_layers:
+        cmd.extend(["--skip-layers", skip_layers])
+
     ppl = None
     try:
         process = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -43,7 +46,7 @@ def get_perplexity(text):
 
     return ppl
 
-def run_blimp_eval():
+def run_blimp_eval(skip_layers=None):
     if not BIN_PATH.exists():
         raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
 
@@ -67,8 +70,8 @@ def run_blimp_eval():
     for idx, item in enumerate(data):
         start_time = time.time()
 
-        ppl_good = get_perplexity(item["sentence_good"])
-        ppl_bad = get_perplexity(item["sentence_bad"])
+        ppl_good = get_perplexity(item["sentence_good"], skip_layers)
+        ppl_bad = get_perplexity(item["sentence_bad"], skip_layers)
 
         status = "success"
         is_correct = False

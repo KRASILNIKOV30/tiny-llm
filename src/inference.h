@@ -15,6 +15,7 @@ typedef struct {
     Engine     *engine;
     const char *prompt;
     ReplyBuf   *reply;
+    int        max_tokens;
 } GenArgs;
 
 void inference_start_thread(pthread_t *thread_id);

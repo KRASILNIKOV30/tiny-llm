@@ -59,7 +59,7 @@ static void *inf_thread(void *arg) {
         s_job_running = 1;
         pthread_mutex_unlock(&s_job_mutex);
 
-        engine_generate(a->engine, a->prompt, token_cb, a->reply);
+        engine_generate(a->engine, a->prompt, a->max_tokens, token_cb, a->reply);
 
         pthread_mutex_lock(&s_job_mutex);
         s_job_running = 0;

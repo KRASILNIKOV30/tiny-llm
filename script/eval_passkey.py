@@ -13,7 +13,7 @@ def generate_filler_text(word_count):
     """Генерирует бессмысленный текст заданной длины."""
     return "".join(random.choices(SAFE_WORDS, k=word_count))
 
-def run_passkey_eval(max_words=2000, steps=5):
+def run_passkey_eval(skip_layers=None, max_words=2000, steps=5):
     """
     Оценивает способность модели извлекать факт (passkey) с разной глубины контекста.
     """
@@ -66,6 +66,9 @@ def run_passkey_eval(max_words=2000, steps=5):
                 "--prompt-file", prompt_file,
                 "--output-json", output_json_file
             ]
+
+            if skip_layers:
+                cmd.extend(["--skip-layers", skip_layers])
 
             try:
                 process = subprocess.run(cmd, capture_output=True, text=True, check=False)

@@ -18,7 +18,7 @@ Engine *engine_load(const char *model_path);
 
 // Запускает инференс на предформатированную строку промпта.
 // Вызыввет cb(engine, token_id, cb_ctx) на каждый сгенерированный токен.
-void engine_generate(Engine *e, const char *prompt,
+void engine_generate(Engine *e, const char *prompt, int max_tokens,
                      TokenCallback cb, void *cb_ctx);
 
 // Декодирует ID токена в UTF8-строку.
@@ -50,3 +50,6 @@ int engine_encode(Engine *e, const char *text, int *out);
 
 // Возвращает размер словаря модели
 int engine_get_vocab_size(Engine *e);
+
+// Добавить в src/engine.h
+void engine_set_layer_mask(Engine *e, const char *mask_str);

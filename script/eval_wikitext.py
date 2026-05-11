@@ -10,7 +10,7 @@ import math
 from config import BIN_PATH, MODEL_PATH, DB_PATH
 from data_loader import load_local_dataset
 
-def run_wikitext_eval():
+def run_wikitext_eval(skip_layers=None):
     """Прогон метрики Perplexity по локальным файлам"""
     if not BIN_PATH.exists():
         raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
@@ -49,6 +49,9 @@ def run_wikitext_eval():
             "--prompt-file", prompt_file,
             "--output-json", output_json_file
         ]
+
+        if skip_layers:
+            cmd_ppl.extend(["--skip-layers", skip_layers])
 
         try:
             process = subprocess.run(cmd_ppl, capture_output=True, text=True, check=False)

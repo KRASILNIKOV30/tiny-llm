@@ -69,7 +69,27 @@ struct Engine {
     double prefill_ms;
     long   gen_tokens;
     double gen_ms;
+    int8_t *active_layers;
 };
+
+void engine_set_layer_mask(Engine *e, const char *mask_str) {
+    if (!e->active_layers) e->active_layers = malloc(e->cfg.n_layers);
+
+    // По умолчанию все слои включены
+    for (int i = 0; i < e->cfg.n_layers; i++) {
+        e->active_layers[i] = 1;
+    }
+
+    if (!mask_str) return;
+
+    int start, end;
+    if (sscanf(mask_str, "%d-%d", &start, &end) == 2) {
+        for (int i = start; i < end && i < e->cfg.n_layers; i++) {
+            e->active_layers[i] = 0;
+        }
+        fprintf(stderr, "[Ablation] Слои с %d по %d отключены.\n", start, end-1);
+    }
+}
 
 // Выполняет forward pass для одного токена в позиции pos
 // и возвращает указатель на логиты по всему словарю.
@@ -91,6 +111,10 @@ static float *forward(Engine *e, int token, int pos) {
 
     // Последовательно прогоняем состояние через все слои трансформера.
     for (int l = 0; l < cfg->n_layers; l++) {
+        if (e->active_layers && e->active_layers[l] == 0) {
+            continue;
+        }
+
         // Attention block
         // Нормализуем вход слоя перед вычислением attention.
         rms_norm(s->xb, s->x, w->layer[l].attn_norm, dm, cfg->rms_norm_eps);
@@ -304,7 +328,7 @@ const char *engine_decode_token(Engine *e, int token_id) {
     return tok_decode(&e->tok, token_id);
 }
 
-void engine_generate(Engine *e, const char *prompt,
+void engine_generate(Engine *e, const char *prompt, int max_tokens,
                      TokenCallback cb, void *cb_ctx) {
     int tokens[4096];
     int n = tok_encode(&e->tok, prompt, tokens);
@@ -319,12 +343,20 @@ void engine_generate(Engine *e, const char *prompt,
     e->prefill_ms     += t1 - t0;
 
     // генерация
+    int tokens_gen = 0;
     for (;;) {
         int next = argmax(logits, e->cfg.vocab_size);
+
+        if (cb(e, next, cb_ctx) != 0) break;
+
         if (next == e->tok.eos_id) break;
         double tg0 = now_ms();
-        if (cb(e, next, cb_ctx) != 0) break;
+
+        tokens_gen++;
+        if (max_tokens > 0 && tokens_gen >= max_tokens) break;
+
         if (e->pos >= e->cfg.max_seq_len) break;
+
         logits = forward(e, next, e->pos++);
         e->gen_ms += now_ms() - tg0;
         e->gen_tokens++;

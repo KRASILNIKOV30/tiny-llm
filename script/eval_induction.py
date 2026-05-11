@@ -8,7 +8,7 @@ import random
 
 from config import BIN_PATH, MODEL_PATH, DB_PATH, SAFE_WORDS
 
-def run_induction_eval(num_samples=20, seq_len=15):
+def run_induction_eval(skip_layers=None, num_samples=20, seq_len=15):
     if not BIN_PATH.exists():
         raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
 
@@ -40,6 +40,9 @@ def run_induction_eval(num_samples=20, seq_len=15):
             "--prompt-file", prompt_file,
             "--output-json", output_json_file
         ]
+
+        if skip_layers:
+            cmd_ppl.extend(["--skip-layers", skip_layers])
 
         try:
             process = subprocess.run(cmd_ppl, capture_output=True, text=True, check=False)

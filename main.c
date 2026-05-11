@@ -32,9 +32,11 @@ int main(int argc, char **argv) {
     const char *model_path  = NULL;
     const char *prompt_file = NULL;
     const char *output_json = NULL;
+    const char *skip_layers_arg = NULL;
     int s_eval_ppl = 0;
     int s_eval_mcqa = 0;
     int s_eval_lama = 0;
+    int max_tokens = 512;
 
     // Парсинг аргументов
     for (int i = 1; i < argc; i++) {
@@ -52,6 +54,10 @@ int main(int argc, char **argv) {
             s_eval_mcqa = 1;
         } else if (strcmp(argv[i], "--eval-lama") == 0) {
             s_eval_lama = 1;
+        } else if (strcmp(argv[i], "--skip-layers") == 0 && i + 1 < argc) {
+            skip_layers_arg = argv[++i];
+        } else if (strcmp(argv[i], "--max-tokens") == 0 && i + 1 < argc) {
+            max_tokens = atoi(argv[++i]);
         }
         else {
             fprintf(stderr, "ошибка: неизвестный аргумент '%s'\n", argv[i]);
@@ -78,6 +84,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "ошибка загрузки модели.\n");
         return 1;
     }
+
+    engine_set_layer_mask(e, skip_layers_arg);
 
     pthread_t inf_thread_id;
     inference_start_thread(&inf_thread_id);
@@ -152,7 +160,7 @@ int main(int argc, char **argv) {
             char *prompt = chat_format_delta(&history, 0, 0, 1);
 
             ReplyBuf reply = { NULL, 0, 0 };
-            GenArgs args = { e, prompt, &reply };
+            GenArgs args = { e, prompt, &reply, max_tokens };
 
             atomic_store(&stop_requested, 0);
             run_job(&args);

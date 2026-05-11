@@ -20,7 +20,7 @@ def load_lama_data():
                 data.append(json.loads(line))
     return data
 
-def run_lama_eval():
+def run_lama_eval(skip_layers=None):
     if not BIN_PATH.exists():
         raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
 
@@ -59,6 +59,9 @@ def run_lama_eval():
             "--prompt-file", prompt_file,
             "--output-json", output_json_file
         ]
+
+        if skip_layers:
+            cmd.extend(["--skip-layers", skip_layers])
 
         try:
             process = subprocess.run(cmd, capture_output=True, text=True, check=False)
