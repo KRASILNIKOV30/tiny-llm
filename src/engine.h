@@ -41,3 +41,9 @@ void engine_free(Engine *e);
 // для каждого правильного следующего токена.
 // Массив нужно освободить через free(). Количество элементов запишется в *out_len.
 float *engine_eval_sequence(Engine *e, const char *text, int *out_len);
+
+// Получает сырые логиты (размером vocab_size) для следующего токена после переданного текста
+float *engine_get_logits(Engine *e, const char *text);
+
+// Обертка для токенизации строки без доступа к внутренностям Engine
+int engine_encode(Engine *e, const char *text, int *out);

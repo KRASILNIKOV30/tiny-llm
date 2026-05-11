@@ -331,6 +331,32 @@ void engine_generate(Engine *e, const char *prompt,
     }
 }
 
+float *engine_get_logits(Engine *e, const char *text) {
+    int *tokens = malloc(e->cfg.max_seq_len * sizeof(int));
+    if (!tokens) return NULL;
+
+    int n = tok_encode(&e->tok, text, tokens);
+    if (n == 0) {
+        free(tokens);
+        return NULL;
+    }
+
+    float *logits = NULL;
+    e->pos = 0; // Сбрасываем позицию KV-кэша
+
+    double t0 = now_ms();
+    for (int i = 0; i < n; i++) {
+        logits = forward(e, tokens[i], e->pos++);
+    }
+
+    e->prefill_ms += now_ms() - t0;
+    e->prefill_tokens += n;
+
+    free(tokens);
+    // Возвращаем указатель на внутренний массив e->s.logits
+    return logits;
+}
+
 void engine_get_stats(const Engine *e, EngineStats *out) {
     out->prefill_tokens = e->prefill_tokens;
     out->prefill_ms     = e->prefill_ms;
@@ -408,4 +434,8 @@ float *engine_eval_sequence(Engine *e, const char *text, int *out_len) {
     free(tokens);
     *out_len = n - 1;
     return probs;
+}
+
+int engine_encode(Engine *e, const char *text, int *out) {
+    return tok_encode(&e->tok, text, out);
 }

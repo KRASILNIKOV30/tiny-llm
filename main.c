@@ -10,6 +10,7 @@
 #include "chat.h"
 #include "utils.h"
 #include "inference.h"
+#include "tokenizer.h"
 
 atomic_int stop_requested = 0;
 int s_batch_mode = 0;
@@ -32,6 +33,7 @@ int main(int argc, char **argv) {
     const char *prompt_file = NULL;
     const char *output_json = NULL;
     int s_eval_ppl = 0;
+    int s_eval_mcqa = 0;
 
     // Парсинг аргументов
     for (int i = 1; i < argc; i++) {
@@ -45,7 +47,10 @@ int main(int argc, char **argv) {
             output_json = argv[++i];
         } else if (argv[i][0] != '-') {
             model_path = argv[i];
-        } else {
+        } else if (strcmp(argv[i], "--eval-mcqa") == 0) {
+            s_eval_mcqa = 1;
+        }
+        else {
             fprintf(stderr, "ошибка: неизвестный аргумент '%s'\n", argv[i]);
             return 1;
         }
@@ -88,7 +93,51 @@ int main(int argc, char **argv) {
                 printf("Собрано %d вероятностей.\n", probs_len);
             }
             free(probs);
-        } else {
+        } else if (s_eval_mcqa) {
+            // НОВЫЙ БЛОК: Замер MCQA через логиты
+            float *logits = engine_get_logits(e, user_msg);
+
+            if (output_json && logits) {
+                int tA[4], tB[4], tC[4], tD[4];
+                int tsA[4], tsB[4], tsC[4], tsD[4];
+
+                // Используем обертку вместо прямого доступа к &e->tok
+                engine_encode(e, "A", tA); engine_encode(e, " A", tsA);
+                engine_encode(e, "B", tB); engine_encode(e, " B", tsB);
+                engine_encode(e, "C", tC); engine_encode(e, " C", tsC);
+                engine_encode(e, "D", tD); engine_encode(e, " D", tsD);
+
+                // Выбираем максимальный логит из обоих вариантов кодировки
+                float vA = logits[tA[0]] > logits[tsA[0]] ? logits[tA[0]] : logits[tsA[0]];
+                float vB = logits[tB[0]] > logits[tsB[0]] ? logits[tB[0]] : logits[tsB[0]];
+                float vC = logits[tC[0]] > logits[tsC[0]] ? logits[tC[0]] : logits[tsC[0]];
+                float vD = logits[tD[0]] > logits[tsD[0]] ? logits[tD[0]] : logits[tsD[0]];
+
+                char best = 'A';
+                float max_val = vA;
+                if (vB > max_val) {
+                    best = 'B';
+                    max_val = vB;
+                }
+                if (vC > max_val) {
+                    best = 'C';
+                    max_val = vC;
+                }
+                if (vD > max_val) {
+                    best = 'D';
+                    max_val = vD;
+                }
+
+                FILE *f = fopen(output_json, "w");
+                if (f) {
+                    fprintf(f,
+                            "{\n  \"prediction\": \"%c\",\n  \"logits\": {\"A\": %.4f, \"B\": %.4f, \"C\": %.4f, \"D\": %.4f}\n}\n",
+                            best, vA, vB, vC, vD);
+                    fclose(f);
+                }
+            }
+        }
+        else {
             ChatHistory history;
             chat_init(&history, NULL);
             chat_append(&history, ROLE_USER, user_msg);
