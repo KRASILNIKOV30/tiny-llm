@@ -12,7 +12,7 @@ import random
 BIN_PATH = Path("./bin/chat")
 MODEL_PATH = Path("./model.gguf") # Укажите ваш путь
 DATASETS_DIR = Path("./datasets/wikitext") # Папка с нашими txt файлами
-DB_PATH = Path("./eval_results.db")
+DB_PATH = Path("script/eval_results.db")
 
 def load_local_dataset():
     """
@@ -214,5 +214,5 @@ def run_induction_eval(num_samples=20, seq_len=15):
         print(f"\n[!] Итоговый средний Induction Score: {valid_scores.mean():.4f}")
 
 if __name__ == "__main__":
-    # run_wikitext_eval()
+    run_wikitext_eval()
     run_induction_eval()

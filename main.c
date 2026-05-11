@@ -1,20 +1,18 @@
-// Интерактивный CLI для запуска инференса модели Qwen2.5
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
 #include <termios.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <stdatomic.h>
-#include <sys/select.h>
-#include <sys/time.h>
 
 #include "engine.h"
 #include "chat.h"
+#include "utils.h"
+#include "inference.h"
 
-// Вспомогательные функции терминала
+atomic_int stop_requested = 0;
+int s_batch_mode = 0;
 
 static struct termios saved_termios;
 
@@ -27,191 +25,6 @@ static void handle_sigint(int sig) {
     term_restore();
     printf("\n");
     exit(0);
-}
-
-// Общие данные для главного потока и инференс-потока.
-
-static atomic_int stop_requested = 0;  // если 1, то остановить генерацию
-static int s_batch_mode = 0;
-
-// Буфер ответов, заполняемы в token_cb. Используется для записи ответов ассистента.
-typedef struct {
-    char *buf;
-    int   len;
-    int   cap;
-} ReplyBuf;
-
-static void reply_append(ReplyBuf *r, const char *piece) {
-    int plen = (int)strlen(piece);
-    if (r->len + plen + 1 > r->cap) {
-        r->cap = r->cap ? r->cap * 2 : 4096;
-        if (r->len + plen + 1 > r->cap) r->cap = r->len + plen + 1;
-        r->buf = realloc(r->buf, r->cap);
-    }
-    memcpy(r->buf + r->len, piece, plen);
-    r->len += plen;
-    r->buf[r->len] = '\0';
-}
-
-// Коллбэк тоенов: печатает каждый токен, добавляет его в буфер ответа.
-static int token_cb(Engine *e, int token_id, void *ctx) {
-    if (atomic_load(&stop_requested)) return 1;
-
-    const char *piece = engine_decode_token(e, token_id);
-
-    // Печатаем в stdout только если мы не в пакетном режиме
-    if (!s_batch_mode) {
-        fputs(piece, stdout);
-        fflush(stdout);
-    }
-
-    reply_append((ReplyBuf *)ctx, piece);
-    return 0;
-}
-
-// Инференс-поток.
-
-typedef struct {
-    Engine     *engine;
-    const char *prompt;  // сформатированная строка в формате ChatML, время жизни управляется вызывающим кодом
-    ReplyBuf   *reply;
-} GenArgs;
-
-static pthread_t       s_inf_thread;
-static pthread_mutex_t s_job_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t  s_job_ready = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t  s_job_done  = PTHREAD_COND_INITIALIZER;
-
-static GenArgs *s_job_args    = NULL; // текущая задача, NULL = простой
-static int      s_job_pending = 0;    // 1 = ожидается новая задача
-static int      s_job_running = 0;    // 1 = задача в прогрессе
-static int      s_inf_exit    = 0;    // 1 = нужно завершить генерацию
-
-static void *inf_thread(void *arg) {
-    (void)arg;
-    pthread_mutex_lock(&s_job_mutex);
-    for (;;) {
-        // Ожидаем, пока не появится новая задача
-        while (!s_job_pending && !s_inf_exit)
-            pthread_cond_wait(&s_job_ready, &s_job_mutex);
-
-        if (s_inf_exit) {
-            pthread_mutex_unlock(&s_job_mutex);
-            return NULL;
-        }
-
-        // Забираем задачу
-        GenArgs *a    = s_job_args;
-        s_job_pending = 0;
-        s_job_running = 1;
-        pthread_mutex_unlock(&s_job_mutex);
-
-        // Запускаем инференс
-        engine_generate(a->engine, a->prompt, token_cb, a->reply);
-
-        pthread_mutex_lock(&s_job_mutex);
-        s_job_running = 0;
-        pthread_cond_signal(&s_job_done);
-    }
-}
-
-// Запускаем задачу и ждём завершения, также ждём нажатия Escape для отмены.
-static void run_job(GenArgs *a) {
-    // Опубликовать задачу
-    pthread_mutex_lock(&s_job_mutex);
-    s_job_args    = a;
-    s_job_pending = 1;
-    s_job_running = 1;
-    pthread_cond_signal(&s_job_ready);
-    pthread_mutex_unlock(&s_job_mutex);
-
-    // Отслеживаем Escape, пока работает инференс
-    for (;;) {
-        pthread_mutex_lock(&s_job_mutex);
-        int done = !s_job_running;
-        pthread_mutex_unlock(&s_job_mutex);
-        if (done) break;
-
-        fd_set fds; FD_ZERO(&fds); FD_SET(STDIN_FILENO, &fds);
-        struct timeval tv = { 0, 20000 }; /* 20 мс */
-        if (select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv) > 0) {
-            char ch;
-            if (read(STDIN_FILENO, &ch, 1) == 1 && ch == 27) {
-                atomic_store(&stop_requested, 1);
-                break;
-            }
-        }
-    }
-
-    // Ожидаем завершения инференс-потока
-    pthread_mutex_lock(&s_job_mutex);
-    while (s_job_running)
-        pthread_cond_wait(&s_job_done, &s_job_mutex);
-    pthread_mutex_unlock(&s_job_mutex);
-}
-
-// Чтение содержимого файла целиком
-static char* read_file_content(const char* path) {
-    FILE *f = fopen(path, "rb");
-    if (!f) return NULL;
-    fseek(f, 0, SEEK_END);
-    long fsize = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    char *string = malloc(fsize + 1);
-    if (fread(string, 1, fsize, f) != (size_t)fsize) {
-        free(string);
-        fclose(f);
-        return NULL;
-    }
-    fclose(f);
-    string[fsize] = '\0';
-    return string;
-}
-
-// Запись результата в JSON с базовым экранированием спецсимволов
-static void write_json(const char *path, const char *prompt, const char *response) {
-    FILE *f = fopen(path, "w");
-    if (!f) {
-        fprintf(stderr, "ошибка: не удалось открыть файл для записи JSON\n");
-        return;
-    }
-
-    fprintf(f, "{\n  \"prompt\": \"");
-    for(const char *c = prompt; *c; c++) {
-        if(*c == '"') fprintf(f, "\\\"");
-        else if(*c == '\\') fprintf(f, "\\\\");
-        else if(*c == '\n') fprintf(f, "\\n");
-        else if(*c == '\r') fprintf(f, "\\r");
-        else if(*c == '\t') fprintf(f, "\\t");
-        else fputc(*c, f);
-    }
-
-    fprintf(f, "\",\n  \"response\": \"");
-    for(const char *c = response; *c; c++) {
-        if(*c == '"') fprintf(f, "\\\"");
-        else if(*c == '\\') fprintf(f, "\\\\");
-        else if(*c == '\n') fprintf(f, "\\n");
-        else if(*c == '\r') fprintf(f, "\\r");
-        else if(*c == '\t') fprintf(f, "\\t");
-        else fputc(*c, f);
-    }
-    fprintf(f, "\"\n}\n");
-    fclose(f);
-}
-
-static void write_json_ppl(const char *path, float *probs, int probs_len) {
-    FILE *f = fopen(path, "w");
-    if (!f) {
-        fprintf(stderr, "ошибка: не удалось открыть файл для записи JSON\n");
-        return;
-    }
-
-    fprintf(f, "{\n  \"target_probs\": [");
-    for (int i = 0; i < probs_len; i++) {
-        fprintf(f, "%.6f%s", probs[i], (i == probs_len - 1) ? "" : ", ");
-    }
-    fprintf(f, "]\n}\n");
-    fclose(f);
 }
 
 int main(int argc, char **argv) {
@@ -248,6 +61,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // Сохранение терминала и установка обработчика сигналов
+    tcgetattr(STDIN_FILENO, &saved_termios);
     signal(SIGINT, handle_sigint);
 
     Engine *e = engine_load(model_path);
@@ -256,14 +71,14 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    pthread_create(&s_inf_thread, NULL, inf_thread, NULL);
+    pthread_t inf_thread_id;
+    inference_start_thread(&inf_thread_id);
 
     if (s_batch_mode) {
         char *user_msg = read_file_content(prompt_file);
         if (!user_msg) exit(1);
 
         if (s_eval_ppl) {
-            // Режим оценки (Perplexity)
             int probs_len = 0;
             float *probs = engine_eval_sequence(e, user_msg, &probs_len);
 
@@ -274,7 +89,6 @@ int main(int argc, char **argv) {
             }
             free(probs);
         } else {
-            // Режим генерации (Zero-shot, ChatML)
             ChatHistory history;
             chat_init(&history, NULL);
             chat_append(&history, ROLE_USER, user_msg);
@@ -297,11 +111,8 @@ int main(int argc, char **argv) {
         free(user_msg);
     }
 
-    pthread_mutex_lock(&s_job_mutex);
-    s_inf_exit = 1;
-    pthread_cond_signal(&s_job_ready);
-    pthread_mutex_unlock(&s_job_mutex);
-    pthread_join(s_inf_thread, NULL);
+    // Чистое завершение потока и модели
+    inference_stop_thread(inf_thread_id);
 
     EngineStats stats;
     engine_get_stats(e, &stats);

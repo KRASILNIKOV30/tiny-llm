@@ -13,13 +13,14 @@ BIN = bin
 
 # Core sources (always compiled)
 SRCS = main.c \
+	   $(SRC)/inference.c \
        $(SRC)/engine.c \
        $(SRC)/tokenizer.c \
        $(SRC)/gguf.c \
        $(SRC)/hashmap.c \
        $(SRC)/chat.c \
        $(SRC)/math_common.c \
-       $(SRC)/utils.c
+       $(SRC)/utils.c \
 
 # Math backend selection (pick at most one):
 #   make           → math_cpu.c      (pure C, no deps)
