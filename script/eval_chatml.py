@@ -122,7 +122,7 @@ def run_chatml_retention_eval(skip_layers=None, head_mask=None, mlp_mask=None, r
     # Сохранение в БД
     df = pd.DataFrame(results)
     conn = sqlite3.connect(DB_PATH)
-    df.to_sql("baseline_chatml_retention", conn, if_exists="replace", index=False)
+    df.to_sql("baseline_chatml_retention", conn, if_exists="append", index=False)
     conn.close()
 
     print(f"\n[!] Итоговый ChatML Retention Score: {df['retention_score'].mean()*100:.1f}%")

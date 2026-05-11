@@ -8,7 +8,7 @@ import random
 
 from config import BIN_PATH, MODEL_PATH, DB_PATH, SAFE_WORDS
 
-def run_induction_eval(skip_layers=None, head_mask=None, mlp_mask=None, rope_mask=None, num_samples=10, seq_len=15):
+def run_induction_eval(skip_layers=None, head_mask=None, mlp_mask=None, rope_mask=None, num_samples=5, seq_len=15):
     if not BIN_PATH.exists():
         raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
 
@@ -95,7 +95,7 @@ def run_induction_eval(skip_layers=None, head_mask=None, mlp_mask=None, rope_mas
 
     df = pd.DataFrame(results)
     conn = sqlite3.connect(DB_PATH)
-    df.to_sql("baseline_induction", conn, if_exists="replace", index=False)
+    df.to_sql("baseline_induction", conn, if_exists="append", index=False)
     conn.close()
 
     valid_scores = df[df['status'] == 'success']['induction_score']

@@ -100,7 +100,7 @@ def run_wikitext_eval(skip_layers=None, head_mask=None, mlp_mask=None, rope_mask
     df = pd.DataFrame(results)
 
     conn = sqlite3.connect(DB_PATH)
-    df.to_sql("baseline_wikitext", conn, if_exists="replace", index=False)
+    df.to_sql("baseline_wikitext", conn, if_exists="append", index=False)
     conn.close()
 
     valid_ppl = df[df['status'] == 'success']['perplexity']

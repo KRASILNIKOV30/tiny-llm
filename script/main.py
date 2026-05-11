@@ -1,4 +1,5 @@
 import sqlite3
+import time # <-- Не забудь импортировать time
 from eval_wikitext import run_wikitext_eval
 from eval_induction import run_induction_eval
 from eval_mcqa import run_mcqa_eval
@@ -12,50 +13,78 @@ def clear_db():
     if DB_PATH.exists():
         DB_PATH.unlink()
 
-def run_full_suite(ablation_name, skip_layers_mask=None, head_mask=None, mlp_mask=None, rope_mask=None):
+def run_full_suite(ablation_name, skip_layers=None, head_mask=None, mlp_mask=None, rope_mask=None):
     print(f"\n" + "="*60)
-    print(f"ЗАПУСК АБЛЯЦИИ: {ablation_name} | Layers: {skip_layers_mask or 'All'} | Heads: {head_mask or 'All'}")
+    print(f"ЗАПУСК АБЛЯЦИИ: {ablation_name}")
+    print(f"Маски -> Layers: {skip_layers}, Heads: {head_mask}, MLP: {mlp_mask}, RoPE: {rope_mask}")
     print("="*60)
 
-    # Передаем head_mask во все функции (раскомментируй нужные)
-    run_induction_eval(skip_layers=skip_layers_mask, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
-    #run_wikitext_eval(skip_layers=skip_layers_mask, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
-    # run_chatml_retention_eval(skip_layers=skip_layers_mask, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
-    # run_mcqa_eval(skip_layers=skip_layers_mask, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
-    # run_blimp_eval(skip_layers=skip_layers_mask, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
-    # run_lama_eval(skip_layers=skip_layers_mask, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
-    # run_passkey_eval(skip_layers=skip_layers_mask, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
+    suite_start_time = time.time()
 
-# ... (get_summary_report остается без изменений) ...
+    # Вспомогательная функция для запуска и замера времени каждого этапа
+    def run_and_measure(test_name, eval_func, **kwargs):
+        print(f"\n---> Старт этапа: {test_name} ...")
+        step_start_time = time.time()
+
+        # Вызов самой функции оценки
+        eval_func(**kwargs)
+
+        step_time = time.time() - step_start_time
+        print(f"---> Завершено: {test_name} | Время этапа: {step_time:.2f} сек ({step_time/60:.2f} мин)")
+
+    # Раскомментируй нужные тесты
+    run_and_measure("Induction Heads", run_induction_eval, skip_layers=skip_layers, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
+    run_and_measure("Wikitext PPL", run_wikitext_eval, skip_layers=skip_layers, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
+    run_and_measure("ChatML Retention", run_chatml_retention_eval, skip_layers=skip_layers, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
+    run_and_measure("MCQA", run_mcqa_eval, skip_layers=skip_layers, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
+    run_and_measure("BLiMP", run_blimp_eval, skip_layers=skip_layers, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
+    run_and_measure("LAMA", run_lama_eval, skip_layers=skip_layers, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
+    run_and_measure("Passkey", run_passkey_eval, skip_layers=skip_layers, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
+
+    suite_time = time.time() - suite_start_time
+    print(f"\n[!] Абляция '{ablation_name}' полностью завершена за {suite_time/60:.2f} минут.")
+
 
 if __name__ == "__main__":
     experiments = [
+        # (Имя, Маска Слоев, Маска Голов, Маска MLP, Маска RoPE)
         ("Baseline", None, None, None, None),
 
-        # Абляции целых слоев
-        ("Skip Middle", "11-13", None, None, None),
-        ("Skip Deep", "20-24", None, None, None),
-        ("Skip Half", "12-24", None, None, None),
+        # 1. Абляции целых слоев
+        ("Skip Early (2-4)", "2-4", None, None, None),
+        ("Skip Middle (11-13)", "11-13", None, None, None),
+        ("Skip Deep (21-23)", "21-23", None, None, None),
 
-        # Абляции голов внимания
-        ("Zero Q-Head L12:Q:0", None, "12:q:0", None, None),
+        # 2. Абляции голов внимания
         ("Zero Q-Head L12:Q:5", None, "12:q:5", None, None),
         ("Zero KV-Head L12:KV:0", None, "12:kv:0", None, None),
-        ("Zero KV-Head L12:KV:1", None, "12:kv:1", None, None),
 
-        # Эксперименты с MLP
-        ("Sever MLP Layer 12", None, None, "12-13", None),
-        ("Sever MLP Deep (20-24)", None, None, "20-24", None),
+        # 3. Эксперименты с MLP
+        ("Sever MLP Early (4-6)", None, None, "4-6", None),
+        ("Sever MLP Deep (20-22)", None, None, "20-22", None),
 
-        # Эксперименты с RoPE
+        # 4. Эксперименты с RoPE
+        ("Mutilate RoPE Early (0-3)", None, None, None, "0-3"),
+        ("Mutilate RoPE Deep (20-23)", None, None, None, "20-23"),
         ("Mutilate RoPE All Layers", None, None, None, "0-24"),
-        ("Mutilate RoPE Early (0-5)", None, None, None, "0-5"),
-        ("Mutilate RoPE Deep (19-24)", None, None, None, "19-24"),
     ]
 
     clear_db()
 
-    for name, l_mask, h_mask, m_mask, r_mask in experiments:
+    global_start_time = time.time()
+
+    for idx, (name, l_mask, h_mask, m_mask, r_mask) in enumerate(experiments):
+        print(f"\n\n>>> Прогресс пайплайна: Эксперимент {idx+1} из {len(experiments)} <<<")
         run_full_suite(name, l_mask, h_mask, m_mask, r_mask)
 
-    print("\n[!] Пайплайн завершен. Все данные сохранены в", DB_PATH)
+    global_time = time.time() - global_start_time
+
+    # Итоговый лог с конвертацией в часы и минуты
+    hours = int(global_time // 3600)
+    minutes = int((global_time % 3600) // 60)
+
+    print("\n" + "#"*60)
+    print(f"[!] ГЛОБАЛЬНЫЙ ПАЙПЛАЙН ЗАВЕРШЕН!")
+    print(f"[!] Общее затраченное время: {hours} ч. {minutes} мин. ({global_time:.2f} сек.)")
+    print(f"[!] Все данные успешно сохранены в: {DB_PATH}") [cite: 93-94]
+    print("#"*60 + "\n")
