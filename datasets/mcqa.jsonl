@@ -1,3 +1,43 @@
+{"category": "math", "question": "What is 2 + 2?", "A": "3", "B": "4", "C": "5", "D": "2", "answer": "B"}
+{"category": "math", "question": "What is 5 + 3?", "A": "7", "B": "9", "C": "8", "D": "6", "answer": "C"}
+{"category": "math", "question": "What is 7 + 4?", "A": "11", "B": "10", "C": "12", "D": "13", "answer": "A"}
+{"category": "math", "question": "What is 10 + 5?", "A": "5", "B": "10", "C": "20", "D": "15", "answer": "D"}
+{"category": "math", "question": "What is 12 + 6?", "A": "16", "B": "18", "C": "17", "D": "19", "answer": "B"}
+{"category": "math", "question": "What is 20 + 10?", "A": "20", "B": "40", "C": "30", "D": "50", "answer": "C"}
+{"category": "math", "question": "What is 8 + 8?", "A": "16", "B": "14", "C": "18", "D": "15", "answer": "A"}
+{"category": "math", "question": "What is 9 + 1?", "A": "8", "B": "11", "C": "9", "D": "10", "answer": "D"}
+{"category": "math", "question": "What is 15 + 4?", "A": "18", "B": "19", "C": "20", "D": "17", "answer": "B"}
+{"category": "math", "question": "What is 50 + 50?", "A": "0", "B": "50", "C": "100", "D": "200", "answer": "C"}
+{"category": "math", "question": "What is 5 - 2?", "A": "3", "B": "2", "C": "4", "D": "1", "answer": "A"}
+{"category": "math", "question": "What is 10 - 4?", "A": "5", "B": "7", "C": "4", "D": "6", "answer": "D"}
+{"category": "math", "question": "What is 8 - 3?", "A": "6", "B": "5", "C": "4", "D": "11", "answer": "B"}
+{"category": "math", "question": "What is 15 - 5?", "A": "20", "B": "5", "C": "10", "D": "15", "answer": "C"}
+{"category": "math", "question": "What is 20 - 10?", "A": "10", "B": "30", "C": "5", "D": "0", "answer": "A"}
+{"category": "math", "question": "What is 9 - 7?", "A": "1", "B": "3", "C": "4", "D": "2", "answer": "D"}
+{"category": "math", "question": "What is 12 - 6?", "A": "4", "B": "6", "C": "8", "D": "12", "answer": "B"}
+{"category": "math", "question": "What is 25 - 5?", "A": "30", "B": "15", "C": "20", "D": "10", "answer": "C"}
+{"category": "math", "question": "What is 18 - 9?", "A": "9", "B": "8", "C": "10", "D": "7", "answer": "A"}
+{"category": "math", "question": "What is 100 - 50?", "A": "0", "B": "25", "C": "75", "D": "50", "answer": "D"}
+{"category": "logic_basic", "question": "All dogs are animals. A poodle is a dog. Is a poodle an animal?", "A": "Yes", "B": "No", "C": "Maybe", "D": "I don't know", "answer": "A"}
+{"category": "logic_basic", "question": "The light is turned on. Therefore, the light is NOT:", "A": "Bright", "B": "Shining", "C": "Off", "D": "Working", "answer": "C"}
+{"category": "logic_basic", "question": "An elephant is bigger than a mouse. This means a mouse is:", "A": "Bigger than an elephant", "B": "Smaller than an elephant", "C": "The same size", "D": "Heavier", "answer": "B"}
+{"category": "logic_basic", "question": "The ball is inside the box. The box is inside the house. Where is the ball?", "A": "Outside the house", "B": "Inside the house", "C": "On the roof", "D": "Under the box", "answer": "B"}
+{"category": "logic_basic", "question": "You must choose exactly one path: Left or Right. You do not go Left. Where do you go?", "A": "Up", "B": "Down", "C": "Left", "D": "Right", "answer": "D"}
+{"category": "logic_basic", "question": "If a car is completely black, it cannot be:", "A": "Fast", "B": "Slow", "C": "White", "D": "Heavy", "answer": "C"}
+{"category": "logic_basic", "question": "Item A is exactly the same as Item B. Item B is exactly the same as Item C. Is Item A the same as Item C?", "A": "Yes", "B": "No", "C": "Maybe", "D": "Only sometimes", "answer": "A"}
+{"category": "logic_basic", "question": "Event X happened before Event Y. Did Event Y happen after Event X?", "A": "Yes", "B": "No", "C": "They happened at the same time", "D": "Impossible to know", "answer": "A"}
+{"category": "logic_basic", "question": "All apples in the basket are red. I take an apple from this basket. What color is it?", "A": "Green", "B": "Yellow", "C": "Blue", "D": "Red", "answer": "D"}
+{"category": "logic_basic", "question": "The glass is completely empty. Is there any water in the glass?", "A": "Yes, a little", "B": "Yes, it is full", "C": "No, it is empty", "D": "Maybe", "answer": "C"}
+{"category": "logic_basic", "question": "John is in Paris. Paris is inside France. Where is John?", "A": "In Germany", "B": "In France", "C": "In Spain", "D": "In Italy", "answer": "B"}
+{"category": "logic_basic", "question": "A train is faster than a bicycle. This means a bicycle is:", "A": "Slower than a train", "B": "Faster than a train", "C": "The same speed", "D": "Flying", "answer": "A"}
+{"category": "logic_basic", "question": "To enter the club, you need a ticket AND an ID. You have a ticket, but NO ID. Can you enter?", "A": "Yes", "B": "No", "C": "Maybe", "D": "Always", "answer": "B"}
+{"category": "logic_basic", "question": "Mary is older than Peter. This means Peter is:", "A": "Older than Mary", "B": "Younger than Mary", "C": "The same age", "D": "Taller", "answer": "B"}
+{"category": "logic_basic", "question": "None of the cats are sleeping. Fluffy is a cat. Is Fluffy sleeping?", "A": "Yes", "B": "No", "C": "Sometimes", "D": "Always", "answer": "B"}
+{"category": "logic_basic", "question": "The door is wide open. Is the door closed?", "A": "Yes", "B": "No", "C": "Almost", "D": "Halfway", "answer": "B"}
+{"category": "logic_basic", "question": "The tree is taller than the bush. Is the bush shorter than the tree?", "A": "Yes", "B": "No", "C": "They are equal", "D": "Cannot be determined", "answer": "A"}
+{"category": "logic_basic", "question": "You need a key OR a code to open the safe. You have a key. Can you open the safe?", "A": "Yes", "B": "No", "C": "Only with a code", "D": "Never", "answer": "A"}
+{"category": "logic_basic", "question": "If today is raining, the ground is wet. Today is raining. Is the ground wet?", "A": "Yes", "B": "No", "C": "It is dry", "D": "It is snowing", "answer": "A"}
+{"category": "logic_basic", "question": "A triangle has exactly three sides. A square has exactly four sides. Are a triangle and a square the same shape?", "A": "Yes", "B": "No", "C": "Always", "D": "Maybe", "answer": "B"}
 {"category": "fact_general", "question": "What is the capital of Japan?", "A": "Seoul", "B": "Beijing", "C": "Tokyo", "D": "Bangkok", "answer": "C"}
 {"category": "fact_general", "question": "Which is the largest ocean on Earth?", "A": "Atlantic Ocean", "B": "Indian Ocean", "C": "Arctic Ocean", "D": "Pacific Ocean", "answer": "D"}
 {"category": "fact_general", "question": "Who wrote the novel '1984'?", "A": "George Orwell", "B": "Aldous Huxley", "C": "Ray Bradbury", "D": "J.R.R. Tolkien", "answer": "A"}

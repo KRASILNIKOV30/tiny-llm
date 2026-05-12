@@ -8,6 +8,9 @@ import time
 
 from config import BIN_PATH, MODEL_PATH, DB_PATH
 
+# Путь для файла с полными ответами
+RESPONSES_LOG_PATH = Path("./script/chatml_responses.jsonl")
+
 def run_chatml_retention_eval(skip_layers=None, head_mask=None, mlp_mask=None, rope_mask=None, num_tests=10):
     if not BIN_PATH.exists():
         raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
@@ -19,20 +22,12 @@ def run_chatml_retention_eval(skip_layers=None, head_mask=None, mlp_mask=None, r
         "Tell me a joke.",
         "List 5 capital cities in Europe.",
         "How do I use Makefile for a C project?",
-        "What is the difference between Q and K heads in GQA?",
-        "Write a hello world in Python.",
-        "Who is Isaac Newton?",
-        "Summarize the benefits of GGUF format.",
-        "Give me a recipe for a simple cake."
     ]
 
     results = []
     print(f"\n[*] Запуск ChatML Formatting Retention ({len(test_prompts[:num_tests])} тестов)...")
 
     for idx, user_query in enumerate(test_prompts[:num_tests]):
-        # Формируем запрос (бинарник внутри сам обернет это в ChatML через chat_format_delta)
-        # Но мы проверяем, как модель завершает генерацию.
-
         with tempfile.NamedTemporaryFile(mode='w', delete=False, encoding='utf-8') as temp_prompt, \
                 tempfile.NamedTemporaryFile(mode='r', delete=False, encoding='utf-8') as temp_output:
 
@@ -43,13 +38,19 @@ def run_chatml_retention_eval(skip_layers=None, head_mask=None, mlp_mask=None, r
 
         start_time = time.time()
 
+        # Инициализируем переменные до try-блока
+        response_text = ""
+        score = 0.0
+        fail_reason = None
+        status = "unknown"
+
         # Запуск
         cmd = [
             str(BIN_PATH), str(MODEL_PATH),
             "--batch-mode",
             "--prompt-file", prompt_file,
             "--output-json", output_json_file,
-            "--max-tokens", "512"
+            "--max-tokens", "300"
         ]
 
         if skip_layers: cmd.extend(["--skip-layers", skip_layers])
@@ -58,34 +59,23 @@ def run_chatml_retention_eval(skip_layers=None, head_mask=None, mlp_mask=None, r
         if rope_mask: cmd.extend(["--mask-rope", rope_mask])
 
         try:
-            # Нам нужно поймать именно то, что модель выдала в ответ
             process = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
             if process.returncode == 0:
                 with open(output_json_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    response = data.get("response", "")
+                    response_text = data.get("response", "")
 
                 # АНАЛИЗ ФОРМАТА
-                # 1. Проверка на наличие лишних открывающих тегов (модель не должна сама их писать)
-                has_illegal_start = "<|im_start|>" in response
+                has_illegal_start = "<|im_start|>" in response_text
+                has_proper_end = response_text.strip().endswith("<|im_end|>")
 
-                # 2. Проверка на корректное завершение.
-                # Т.к. твой движок в engine_generate проверяет EOS,
-                # мы смотрим, добавил ли колбэк тег из токенизатора.
-                has_proper_end = response.strip().endswith("<|im_end|>")
-
-                # В Qwen2.5 EOS токен обычно декодируется как <|im_end|> или вызывает остановку.
-                # Если в response_text есть <|im_end|>, значит retention = 1.0
                 score = 1.0
-                fail_reason = None
 
                 if has_illegal_start:
                     score -= 0.5
                     fail_reason = "Illegal <|im_start|> found"
                 if not has_proper_end:
-                    # Примечание: если движок обрезает EOS до записи в буфер,
-                    # проверь логику в src/inference.c:token_cb
                     score -= 0.5
                     if fail_reason: fail_reason += " & Missing <|im_end|>"
                     else: fail_reason = "Missing <|im_end|>"
@@ -105,8 +95,8 @@ def run_chatml_retention_eval(skip_layers=None, head_mask=None, mlp_mask=None, r
             Path(output_json_file).unlink(missing_ok=True)
 
         print(f"  -> Тест {idx+1:02d} | Score: {score:.2f} | Status: {status} | Reason: {fail_reason}")
-        print('\n' + response + '\n')
 
+        # 1. Сборка результатов для SQLite
         results.append({
             "task_type": "chatml_retention",
             "prompt": user_query[:30],
@@ -119,6 +109,27 @@ def run_chatml_retention_eval(skip_layers=None, head_mask=None, mlp_mask=None, r
             "rope_mask": rope_mask if rope_mask else "None",
         })
 
+        # 2. Сохранение полных ответов и параметров в JSONL для ИИ
+        log_entry = {
+            "prompt": user_query,
+            "response": response_text,
+            "ablation": {
+                "layer_mask": skip_layers if skip_layers else "None",
+                "head_mask": head_mask if head_mask else "None",
+                "mlp_mask": mlp_mask if mlp_mask else "None",
+                "rope_mask": rope_mask if rope_mask else "None",
+            },
+            "metrics": {
+                "score": score,
+                "status": status,
+                "fail_reason": fail_reason
+            }
+        }
+
+        # Режим 'a' (append) дописывает в файл, не стирая старое
+        with open(RESPONSES_LOG_PATH, 'a', encoding='utf-8') as log_file:
+            log_file.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+
     # Сохранение в БД
     df = pd.DataFrame(results)
     conn = sqlite3.connect(DB_PATH)
@@ -126,6 +137,7 @@ def run_chatml_retention_eval(skip_layers=None, head_mask=None, mlp_mask=None, r
     conn.close()
 
     print(f"\n[!] Итоговый ChatML Retention Score: {df['retention_score'].mean()*100:.1f}%")
+    print(f"[+] Логи ответов сохранены в {RESPONSES_LOG_PATH}")
 
 if __name__ == "__main__":
     run_chatml_retention_eval()

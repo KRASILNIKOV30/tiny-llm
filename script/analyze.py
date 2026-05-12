@@ -67,31 +67,67 @@ def build_summary_table():
     return summary_df
 
 def plot_bar_charts(summary_df):
-    """Строит столбчатые диаграммы для метрик"""
+    """Строит отдельные столбчатые диаграммы для каждой метрики"""
     if summary_df.empty:
         return
 
-    # График 1: Accuracy метрики (от 0 до 100%)
-    acc_cols = [c for c in summary_df.columns if 'Acc' in c or 'ChatML' in c]
-    if acc_cols:
-        ax = summary_df[acc_cols].plot(kind='bar', figsize=(14, 7), width=0.8)
-        plt.title('Деградация метрик (Accuracy & Retention)', fontsize=16)
-        plt.ylabel('Score (%)')
-        plt.xticks(rotation=45, ha='right')
-        plt.legend(loc='lower left')
-        plt.tight_layout()
-        plt.savefig('ablation_accuracy.png', dpi=300)
-        print("[+] Сохранен график: ablation_accuracy.png")
+    # Полный список метрик
+    metrics_to_plot = [
+        'induction_score',
+        'MCQA Acc %',
+        'BLiMP Acc %',
+        'LAMA Acc %',
+        'ChatML %',
+        'Passkey Acc %'
+    ]
 
-    # График 2: Perplexity (чем ниже, тем лучше)
+    for metric in metrics_to_plot:
+        if metric in summary_df.columns:
+            plt.figure(figsize=(10, 6))
+
+            sns.barplot(
+                x=summary_df.index,
+                y=summary_df[metric],
+                hue=summary_df.index,
+                palette="viridis",
+                legend=False
+            )
+
+            plt.title(f'Деградация: {metric}', fontsize=16)
+            plt.xticks(rotation=45, ha='right')
+
+            # Умная настройка оси Y
+            if "Acc" in metric or "ChatML" in metric:
+                plt.ylabel('Score (%)')
+                plt.ylim(0, 105)
+            elif "induction" in metric:
+                plt.ylabel('Score (0.0 - 1.0)')
+                plt.ylim(0, 1.1) # Induction обычно в диапазоне 0-1
+
+            safe_name = metric.replace(' ', '_').replace('%', 'pct').lower()
+            filename = f"ablation_{safe_name}.png"
+
+            plt.tight_layout()
+            plt.savefig(filename, dpi=300)
+            plt.close()
+            print(f"[+] Сохранен график: {filename}")
+
+    # Perplexity оставляем особняком (шкала от 0 до бесконечности)
     if 'perplexity' in summary_df.columns:
-        plt.figure(figsize=(10, 5))
-        sns.barplot(x=summary_df.index, y=summary_df['perplexity'], palette="Reds")
+        plt.figure(figsize=(10, 6))
+        sns.barplot(
+            x=summary_df.index,
+            y=summary_df['perplexity'],
+            hue=summary_df.index,
+            palette="Reds_r",
+            legend=False
+        )
         plt.title('Wikitext Perplexity (Меньше = Лучше)', fontsize=16)
-        plt.xticks(rotation=45, ha='right')
         plt.ylabel('PPL')
+        plt.xticks(rotation=45, ha='right')
         plt.tight_layout()
         plt.savefig('ablation_perplexity.png', dpi=300)
+        plt.close()
         print("[+] Сохранен график: ablation_perplexity.png")
 
 def plot_passkey_heatmap():
@@ -136,7 +172,11 @@ def export_for_ai(summary_df):
     # Очищаем NaN значения (если какой-то тест упал/не запускался)
     cleaned_data = []
     for row in export_data:
-        clean_row = {k: round(v, 2) if pd.notnull(v) else "N/A" for k, v in row.items()}
+        clean_row = {
+            k: (round(v, 2) if isinstance(v, (int, float)) and pd.notnull(v) else v)
+            for k, v in row.items()
+        }
+        clean_row = {k: (v if pd.notnull(v) else "N/A") for k, v in clean_row.items()}
         cleaned_data.append(clean_row)
 
     output_json = {

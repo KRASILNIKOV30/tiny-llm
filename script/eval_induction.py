@@ -8,7 +8,7 @@ import random
 
 from config import BIN_PATH, MODEL_PATH, DB_PATH, SAFE_WORDS
 
-def run_induction_eval(skip_layers=None, head_mask=None, mlp_mask=None, rope_mask=None, num_samples=5, seq_len=15):
+def run_induction_eval(skip_layers=None, head_mask=None, mlp_mask=None, rope_mask=None, num_samples=3, seq_len=10):
     if not BIN_PATH.exists():
         raise FileNotFoundError(f"Бинарник не найден: {BIN_PATH}")
 
@@ -49,15 +49,12 @@ def run_induction_eval(skip_layers=None, head_mask=None, mlp_mask=None, rope_mas
         try:
             process = subprocess.run(cmd_ppl, capture_output=True, text=True, check=False)
 
-            if process.stderr and "[Ablation]" in process.stderr:
-                print(f" {process.stderr.strip()}", end="")
-
             if process.returncode == 0:
                 with open(output_json_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     probs = data.get("target_probs", [])
 
-                    if len(probs) > 10:
+                    if len(probs) >= 10:
                         mid = len(probs) // 2
                         first_half = probs[:mid]
                         second_half = probs[mid:]

@@ -32,7 +32,6 @@ def run_full_suite(ablation_name, skip_layers=None, head_mask=None, mlp_mask=Non
         step_time = time.time() - step_start_time
         print(f"---> Завершено: {test_name} | Время этапа: {step_time:.2f} сек ({step_time/60:.2f} мин)")
 
-    # Раскомментируй нужные тесты
     run_and_measure("Induction Heads", run_induction_eval, skip_layers=skip_layers, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
     run_and_measure("Wikitext PPL", run_wikitext_eval, skip_layers=skip_layers, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)
     run_and_measure("ChatML Retention", run_chatml_retention_eval, skip_layers=skip_layers, head_mask=head_mask, mlp_mask=mlp_mask, rope_mask=rope_mask)

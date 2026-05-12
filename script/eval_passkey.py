@@ -13,7 +13,7 @@ def generate_filler_text(word_count):
     """Генерирует бессмысленный текст заданной длины."""
     return "".join(random.choices(SAFE_WORDS, k=word_count))
 
-def run_passkey_eval(skip_layers=None, head_mask=None, mlp_mask=None, rope_mask=None, max_words=2000, steps=5):
+def run_passkey_eval(skip_layers=None, head_mask=None, mlp_mask=None, rope_mask=None, max_words=1000, steps=3):
     """
     Оценивает способность модели извлекать факт (passkey) с разной глубины контекста.
     """
